@@ -1,0 +1,90 @@
+// Prisma schema for Medha Procurement
+// Run `npx prisma db push` to sync to your Postgres database.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  VENDOR
+}
+
+enum RfqStatus {
+  OPEN      // accepting quotes
+  CLOSED    // no longer accepting quotes
+  AWARDED   // a vendor has been chosen
+}
+
+enum QuoteStatus {
+  SUBMITTED
+  SHORTLISTED
+  AWARDED
+  REJECTED
+}
+
+// A login identity. Both admins and vendors are Users, separated by `role`.
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(VENDOR)
+  name         String
+  // Vendor-specific profile fields (null for admins)
+  companyName  String?
+  phone        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  rfqsCreated  Rfq[]    @relation("RfqCreatedBy")
+  quotes       Quote[]
+}
+
+// A requirement / campaign posted by an admin (e.g. "100 laptops").
+model Rfq {
+  id          String     @id @default(cuid())
+  title       String
+  description String
+  category    String?    // e.g. "Electronics", "Stationery"
+  quantity    Int
+  unit        String     @default("units") // e.g. "laptops", "kits"
+  budget      Float?     // optional target/ceiling budget
+  deadline    DateTime   // last date to submit quotes
+  status      RfqStatus  @default(OPEN)
+
+  createdById String
+  createdBy   User       @relation("RfqCreatedBy", fields: [createdById], references: [id])
+
+  quotes      Quote[]
+  awardedQuoteId String? @unique
+
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+// A vendor's bid on a single Rfq.
+model Quote {
+  id            String      @id @default(cuid())
+  rfqId         String
+  rfq           Rfq         @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+  vendorId      String
+  vendor        User        @relation(fields: [vendorId], references: [id])
+
+  unitPrice     Float       // price per unit quoted
+  totalPrice    Float       // computed/entered total
+  deliveryDays  Int         // days to deliver after award
+  notes         String?     // vendor remarks, spec details
+  attachmentUrl String?     // link to a proposal/spec doc
+
+  status        QuoteStatus @default(SUBMITTED)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  // One vendor submits at most one quote per RFQ.
+  @@unique([rfqId, vendorId])
+}
