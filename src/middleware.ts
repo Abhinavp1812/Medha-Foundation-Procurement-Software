@@ -1,22 +1,37 @@
-import { auth } from "@/auth";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { jwtDecrypt } from "jose";
 
-export default auth((req) => {
+async function getRole(req: NextRequest): Promise<string | null> {
+  const cookieName =
+    process.env.NODE_ENV === "production"
+      ? "__Secure-authjs.session-token"
+      : "authjs.session-token";
+
+  const token = req.cookies.get(cookieName)?.value;
+  if (!token) return null;
+
+  try {
+    const secret = new TextEncoder().encode(process.env.AUTH_SECRET!);
+    const { payload } = await jwtDecrypt(token, secret);
+    return (payload as { role?: string }).role ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  const session = req.auth;
-  const role = session?.user?.role;
+  const role = await getRole(req);
 
   const isAdminArea = pathname.startsWith("/admin");
   const isVendorArea = pathname.startsWith("/vendor");
 
-  // Not logged in and trying to reach a protected area -> sign in.
-  if ((isAdminArea || isVendorArea) && !session) {
+  if ((isAdminArea || isVendorArea) && !role) {
     const url = new URL("/signin", req.nextUrl);
     url.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(url);
   }
 
-  // Wrong role -> bounce to their own dashboard.
   if (isAdminArea && role !== "ADMIN") {
     return NextResponse.redirect(new URL("/vendor", req.nextUrl));
   }
@@ -25,9 +40,8 @@ export default auth((req) => {
   }
 
   return NextResponse.next();
-});
+}
 
 export const config = {
-  runtime: "nodejs",
   matcher: ["/admin/:path*", "/vendor/:path*"],
 };
