@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { SignInForm } from "@/components/SignInForm";
 
 export default function SignInPage() {
@@ -19,7 +20,9 @@ export default function SignInPage() {
         <div className="w-full max-w-sm">
           <h1 className="font-display text-3xl font-medium mb-1">Welcome back</h1>
           <p className="text-black/55 mb-8">Sign in to continue.</p>
-          <SignInForm />
+          <Suspense>
+            <SignInForm />
+          </Suspense>
           <p className="mt-6 text-sm text-black/55">
             New vendor?{" "}
             <Link
