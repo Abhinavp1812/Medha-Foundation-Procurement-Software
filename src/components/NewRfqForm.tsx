@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import { createRfq } from "@/lib/actions";
 
-const initialState = {};
+const initialState: { error?: string } = {};
 
 export function NewRfqForm() {
   const [state, formAction, pending] = useActionState(createRfq, initialState);

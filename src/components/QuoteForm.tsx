@@ -10,7 +10,7 @@ type Existing = {
   attachmentUrl: string;
 } | null;
 
-const initialState = {};
+const initialState: { error?: string; success?: string } = {};
 
 export function QuoteForm({
   rfqId,

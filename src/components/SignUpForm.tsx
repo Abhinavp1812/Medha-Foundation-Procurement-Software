@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import { registerVendor } from "@/lib/actions";
 
-const initialState = {};
+const initialState: { error?: string } = {};
 
 export function SignUpForm() {
   const [state, formAction, pending] = useActionState(
