@@ -1,32 +1,15 @@
-import { NextRequest, NextResponse } from "next/server";
-import { jwtDecrypt } from "jose";
+import { auth } from "@/auth";
+import { NextResponse } from "next/server";
 
-async function getRole(req: NextRequest): Promise<string | null> {
-  const cookieName =
-    process.env.NODE_ENV === "production"
-      ? "__Secure-authjs.session-token"
-      : "authjs.session-token";
-
-  const token = req.cookies.get(cookieName)?.value;
-  if (!token) return null;
-
-  try {
-    const secret = new TextEncoder().encode(process.env.AUTH_SECRET!);
-    const { payload } = await jwtDecrypt(token, secret);
-    return (payload as { role?: string }).role ?? null;
-  } catch {
-    return null;
-  }
-}
-
-export async function middleware(req: NextRequest) {
+export default auth((req) => {
   const { pathname } = req.nextUrl;
-  const role = await getRole(req);
+  const session = req.auth;
+  const role = session?.user?.role;
 
   const isAdminArea = pathname.startsWith("/admin");
   const isVendorArea = pathname.startsWith("/vendor");
 
-  if ((isAdminArea || isVendorArea) && !role) {
+  if ((isAdminArea || isVendorArea) && !session) {
     const url = new URL("/signin", req.nextUrl);
     url.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(url);
@@ -40,8 +23,9 @@ export async function middleware(req: NextRequest) {
   }
 
   return NextResponse.next();
-}
+});
 
 export const config = {
+  runtime: "nodejs",
   matcher: ["/admin/:path*", "/vendor/:path*"],
 };
